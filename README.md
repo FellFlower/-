@@ -8,3 +8,4 @@
 5.定位帧率约为40FPS，也提供了鲁棒稍差的60FPS版本，但是考虑到车载屏幕本身刷新率是60Hz，也已经够用  
 
 感谢读者能阅读参考，笔者工程经验甚少，所使用算法并不复杂，希望能为读者带来一些帮助
+<img width="1706" height="1279" alt="090b28da9f2c53eabdc9a49319283666" src="https://github.com/user-attachments/assets/d8a310d6-155a-4098-9c1c-5a0b804cdaad" />
