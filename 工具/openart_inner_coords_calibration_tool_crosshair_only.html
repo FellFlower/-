@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenART Plus 全坐标残差打表工具</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg:#f4f6f8; --panel:#fff; --panel2:#f8fafc; --text:#172033;
+      --muted:#667085; --border:#d0d5dd; --accent:#2563eb;
+      --accent-soft:#dbeafe; --success:#15803d; --success-soft:#dcfce7;
+      --warning:#b45309; --warning-soft:#fef3c7; --danger:#dc2626;
+      --danger-soft:#fee2e2; --selected:#7c3aed; --selected-soft:#ede9fe;
+      --shadow:0 10px 28px rgba(15,23,42,.08);
+    }
+    @media (prefers-color-scheme:dark) {
+      :root {
+        --bg:#0f172a; --panel:#111827; --panel2:#172033; --text:#f8fafc;
+        --muted:#a7b0c0; --border:#334155; --accent:#60a5fa;
+        --accent-soft:#1e3a5f; --success:#4ade80; --success-soft:#163c28;
+        --warning:#fbbf24; --warning-soft:#4a3213; --danger:#f87171;
+        --danger-soft:#4c1d1d; --selected:#c4b5fd; --selected-soft:#312e81;
+        --shadow:0 10px 28px rgba(0,0,0,.28);
+      }
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text)}
+    button,select,input,textarea{font:inherit} button{cursor:pointer}
+    .app{width:min(1600px,100%);margin:0 auto;padding:18px}
+    .topbar{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:14px}
+    h1,h2,h3,p{margin-top:0} h1{margin-bottom:6px;font-size:26px} h2{margin-bottom:12px;font-size:19px} h3{margin-bottom:8px;font-size:16px}
+    .subtitle{margin:0;color:var(--muted);line-height:1.65}
+    .badges{display:flex;flex-wrap:wrap;gap:8px}
+    .badge{display:inline-flex;align-items:center;min-height:30px;padding:5px 10px;border:1px solid var(--border);border-radius:999px;background:var(--panel);color:var(--muted);font-size:13px;white-space:nowrap}
+    .badge.good{background:var(--success-soft);color:var(--success);border-color:var(--success)}
+    .badge.warn{background:var(--warning-soft);color:var(--warning);border-color:var(--warning)}
+    .layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(420px,.85fr);gap:14px;align-items:start}
+    @media(max-width:1120px){.layout{grid-template-columns:1fr}}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);padding:15px}
+    .left-column,.right-column{display:grid;gap:14px}
+    .field{display:grid;gap:6px} label{font-size:14px;font-weight:700}
+    input[type=file],select,input[type=number]{width:100%;min-height:40px;border:1px solid var(--border);border-radius:10px;background:var(--panel2);color:var(--text);padding:8px 10px}
+    .control-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(200px,.65fr);gap:10px}
+    @media(max-width:680px){.control-grid{grid-template-columns:1fr}}
+    .button-row{display:flex;flex-wrap:wrap;gap:8px}
+    .btn{min-height:40px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--panel2);color:var(--text)}
+    .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.45;cursor:not-allowed}
+    .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .btn.success{background:var(--success-soft);color:var(--success);border-color:var(--success)}
+    .btn.danger{background:var(--danger-soft);color:var(--danger);border-color:var(--danger)}
+    .mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+    .mode-btn.active{background:var(--accent-soft);color:var(--accent);border-color:var(--accent);font-weight:800}
+    .hint,.status-box{padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--panel2);color:var(--muted);font-size:13px;line-height:1.65}
+    .hint strong,.status-box strong{color:var(--text)}
+    .success-box{background:var(--success-soft);color:var(--success);border-color:var(--success)}
+    .warning-box{background:var(--warning-soft);color:var(--warning);border-color:var(--warning)}
+    .hidden{display:none!important}
+    .canvas-layout{display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:12px;align-items:start;margin-top:12px}
+    @media(max-width:760px){.canvas-layout{grid-template-columns:1fr}}
+    .canvas-shell{min-height:360px;max-height:72vh;overflow:auto;padding:10px;border:1px solid var(--border);border-radius:12px;background:linear-gradient(45deg,rgba(128,128,128,.10) 25%,transparent 25%),linear-gradient(-45deg,rgba(128,128,128,.10) 25%,transparent 25%),linear-gradient(45deg,transparent 75%,rgba(128,128,128,.10) 75%),linear-gradient(-45deg,transparent 75%,rgba(128,128,128,.10) 75%);background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0}
+    #mainCanvas{display:block;width:640px;height:480px;cursor:crosshair;image-rendering:pixelated;border:1px solid rgba(127,127,127,.45);background:#111}
+    .side-tools{display:grid;gap:10px}
+    #magnifier{width:190px;height:190px;border:1px solid var(--border);border-radius:10px;image-rendering:pixelated;background:#111}
+    .small-text{color:var(--muted);font-size:13px;line-height:1.6;font-variant-numeric:tabular-nums}
+    .zoom-line{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted)}
+    .tag-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+    .tag-btn{min-height:60px;text-align:left}.tag-btn.done{background:var(--success-soft);border-color:var(--success)}.tag-btn.active{background:var(--accent-soft);border-color:var(--accent)}
+    .coord-grid-wrap{overflow:auto;max-height:480px;border:1px solid var(--border);border-radius:12px;padding:8px;background:var(--panel2)}
+    .coord-grid{display:grid;grid-template-columns:28px repeat(16,minmax(38px,1fr));gap:4px;min-width:760px;align-items:stretch}
+    .axis-cell,.coord-cell{min-height:34px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;font-variant-numeric:tabular-nums}
+    .axis-cell{color:var(--muted);font-weight:800}
+    .coord-cell{border:1px solid var(--border);background:var(--panel);color:var(--text);padding:3px}
+    .coord-cell:hover{border-color:var(--accent)}
+    .coord-cell.selected-point{background:var(--selected-soft);border-color:var(--selected);color:var(--selected);font-weight:800}
+    .coord-cell.required-unset{background:var(--warning-soft);border-color:var(--warning);color:var(--warning);font-weight:800}
+    .coord-cell.calibrated{background:var(--success-soft);border-color:var(--success);color:var(--success);font-weight:800}
+    .coord-cell.current{outline:3px solid var(--accent);outline-offset:1px}
+    .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;color:var(--muted);font-size:12px}
+    .legend-item{display:inline-flex;align-items:center;gap:5px}.swatch{width:14px;height:14px;border-radius:4px;border:1px solid var(--border)}
+    .swatch.selected{background:var(--selected-soft);border-color:var(--selected)}.swatch.pending{background:var(--warning-soft);border-color:var(--warning)}.swatch.done{background:var(--success-soft);border-color:var(--success)}
+    .progress{height:10px;border:1px solid var(--border);border-radius:999px;overflow:hidden;background:var(--panel2);margin:9px 0}.progress>div{height:100%;width:0;background:var(--accent);transition:width .2s ease}
+    textarea{width:100%;min-height:430px;resize:vertical;border:1px solid var(--border);border-radius:12px;background:#0b1020;color:#e5edf8;padding:14px;font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;font-size:13px;line-height:1.55}
+    code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}.output-panel{margin-top:14px}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <h1>OpenART Plus 全坐标残差打表工具</h1>
+        <p class="subtitle">支持地图全部 192 个坐标：x=0～15、y=0～11，包括外墙。先选择本次需要标定的点，确认后只需完成这些点即可生成代码。</p>
+      </div>
+      <div class="badges">
+        <span id="imageBadge" class="badge warn">尚未载入图片</span>
+        <span id="tagBadge" class="badge warn">Tag 0 / 4</span>
+        <span id="selectedBadge" class="badge warn">已选择 0</span>
+        <span id="calibratedBadge" class="badge warn">已标定 0 / 0</span>
+      </div>
+    </header>
+
+    <div class="layout">
+      <div class="left-column">
+        <section class="panel">
+          <div class="control-grid">
+            <div class="field">
+              <label for="imageInput">上传 OpenART Plus PNG 原图</label>
+              <input id="imageInput" type="file" accept="image/png,image/*" />
+            </div>
+            <div class="field">
+              <label for="currentPointSelect">当前要标定的地图坐标</label>
+              <select id="currentPointSelect" disabled></select>
+            </div>
+          </div>
+
+          <div class="mode-switch">
+            <button id="mapModeBtn" type="button" class="btn mode-btn active">点击图片设置地图坐标</button>
+            <button id="tagModeBtn" type="button" class="btn mode-btn">点击图片设置 AprilTag</button>
+          </div>
+
+          <div id="mapControls" style="margin-top:10px">
+            <div class="button-row">
+              <button id="undoCurrentBtn" type="button" class="btn">撤销当前坐标</button>
+              <button id="nextUnsetBtn" type="button" class="btn">下一个未标定坐标</button>
+              <button id="resetCalibratedBtn" type="button" class="btn danger">重置全部已标定坐标</button>
+            </div>
+          </div>
+
+          <div id="tagControls" class="hidden">
+            <div class="tag-grid">
+              <button class="btn tag-btn active" type="button" data-tag="0"><strong>Tag 0</strong><br>左上 → (0,0)</button>
+              <button class="btn tag-btn" type="button" data-tag="1"><strong>Tag 1</strong><br>右上 → (15,0)</button>
+              <button class="btn tag-btn" type="button" data-tag="2"><strong>Tag 2</strong><br>右下 → (15,11)</button>
+              <button class="btn tag-btn" type="button" data-tag="3"><strong>Tag 3</strong><br>左下 → (0,11)</button>
+            </div>
+            <div class="button-row" style="margin-top:8px">
+              <button id="undoTagBtn" type="button" class="btn">撤销当前 Tag</button>
+              <button id="resetTagsBtn" type="button" class="btn danger">重置全部 Tag</button>
+            </div>
+          </div>
+
+          <div class="hint" style="margin-top:10px"><strong>滚轮缩放：</strong>鼠标放在图像区域内，滚轮上滑放大、下滑缩小。页面始终记录 PNG 的原始像素坐标，不受显示缩放影响。</div>
+
+          <div class="canvas-layout">
+            <div id="canvasShell" class="canvas-shell">
+              <canvas id="mainCanvas" width="320" height="240"></canvas>
+            </div>
+            <aside class="side-tools">
+              <h3>像素放大镜</h3>
+              <canvas id="magnifier" width="190" height="190"></canvas>
+              <div id="mouseInfo" class="small-text">鼠标像素：—<br>当前目标：尚未确认标定点</div>
+              <div>
+                <div class="zoom-line"><span>显示缩放</span><span id="zoomText">200%</span></div>
+                <input id="zoomRange" type="range" min="50" max="800" step="10" value="200" />
+              </div>
+              <button id="resetEverythingBtn" type="button" class="btn danger">全部数据重置</button>
+              <button id="exportSessionBtn" type="button" class="btn">导出标定进度 JSON</button>
+              <label class="btn" style="text-align:center">导入标定进度 JSON<input id="importSessionInput" class="hidden" type="file" accept=".json,application/json" /></label>
+            </aside>
+          </div>
+        </section>
+
+        <section class="panel output-panel">
+          <h2>可直接替换到 OpenMV 代码中的参数区域</h2>
+          <div class="button-row" style="margin-bottom:10px">
+            <button id="generateBtn" type="button" class="btn primary">生成参数代码</button>
+            <button id="copyBtn" type="button" class="btn">复制代码</button>
+            <button id="downloadBtn" type="button" class="btn">下载 TXT</button>
+          </div>
+          <textarea id="codeOutput" spellcheck="false" placeholder="确认标定点集合、完成 4 个 Tag 和所需地图点后生成。"></textarea>
+          <div class="hint" style="margin-top:8px">输出始终使用完整的 <code>CAL_X=(0…15)</code> 与 <code>CAL_Y=(0…11)</code>。未选中的坐标由已标定点在网页中使用反距离加权插值补全，OpenART Plus 运行时不增加这部分计算量。</div>
+        </section>
+      </div>
+
+      <aside class="right-column">
+        <section class="panel">
+          <h2>选择本次需要标定的坐标</h2>
+          <p class="subtitle">未确认时点击格子可选择或取消。确认后，生成条件只检查这些点。</p>
+          <div class="button-row" style="margin-bottom:9px">
+            <button id="selectAllBtn" type="button" class="btn">全选 192 点</button>
+            <button id="selectInnerBtn" type="button" class="btn">仅选择内部</button>
+            <button id="clearSelectionBtn" type="button" class="btn danger">清空选择</button>
+          </div>
+          <div class="coord-grid-wrap"><div id="coordGrid" class="coord-grid"></div></div>
+          <div class="legend">
+            <span class="legend-item"><span class="swatch selected"></span>已选择，未确认</span>
+            <span class="legend-item"><span class="swatch pending"></span>已确认，待标定</span>
+            <span class="legend-item"><span class="swatch done"></span>已标定</span>
+          </div>
+          <div class="button-row" style="margin-top:10px">
+            <button id="confirmSelectionBtn" type="button" class="btn success">确认标定点集合</button>
+            <button id="editSelectionBtn" type="button" class="btn hidden">重新选择标定点</button>
+          </div>
+          <div id="selectionStatus" class="status-box warning-box" style="margin-top:10px">尚未确认标定点集合。</div>
+        </section>
+
+        <section class="panel">
+          <h2>标定进度</h2>
+          <div class="progress"><div id="calibrationProgress"></div></div>
+          <div id="progressText" class="status-box">已标定 0 个坐标。</div>
+          <div id="generateStatus" class="status-box warning-box" style="margin-top:9px">需要先确认标定点集合。</div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+<script>
+(() => {
+"use strict";
+const GRID_W=16, GRID_H=12;
+const ALL_X=Array.from({length:GRID_W},(_,i)=>i);
+const ALL_Y=Array.from({length:GRID_H},(_,i)=>i);
+const points=new Map();
+for(let y=0;y<GRID_H;y++)for(let x=0;x<GRID_W;x++)points.set(`${x},${y}`,{key:`${x},${y}`,x,y,selected:false,required:false,px:null,py:null});
+const tags={0:{id:0,gx:0,gy:0,px:null,py:null},1:{id:1,gx:15,gy:0,px:null,py:null},2:{id:2,gx:15,gy:11,px:null,py:null},3:{id:3,gx:0,gy:11,px:null,py:null}};
+const state={image:null,imageName:"",mode:"map",selectionConfirmed:false,currentPointKey:null,selectedTagId:0,zoom:2,mousePx:null,mousePy:null};
+const $=id=>document.getElementById(id);
+const imageInput=$("imageInput"),currentPointSelect=$("currentPointSelect"),mapModeBtn=$("mapModeBtn"),tagModeBtn=$("tagModeBtn"),mapControls=$("mapControls"),tagControls=$("tagControls"),mainCanvas=$("mainCanvas"),mainCtx=mainCanvas.getContext("2d"),canvasShell=$("canvasShell"),magnifier=$("magnifier"),magCtx=magnifier.getContext("2d"),mouseInfo=$("mouseInfo"),zoomRange=$("zoomRange"),zoomText=$("zoomText"),coordGrid=$("coordGrid"),confirmSelectionBtn=$("confirmSelectionBtn"),editSelectionBtn=$("editSelectionBtn"),selectionStatus=$("selectionStatus"),imageBadge=$("imageBadge"),tagBadge=$("tagBadge"),selectedBadge=$("selectedBadge"),calibratedBadge=$("calibratedBadge"),calibrationProgress=$("calibrationProgress"),progressText=$("progressText"),generateStatus=$("generateStatus"),codeOutput=$("codeOutput");
+
+const getPoint=key=>points.get(key), allPoints=()=>Array.from(points.values()), selectedPoints=()=>allPoints().filter(p=>p.selected), requiredPoints=()=>allPoints().filter(p=>p.required), calibratedRequiredPoints=()=>requiredPoints().filter(p=>p.px!==null&&p.py!==null), calibratedAllPoints=()=>allPoints().filter(p=>p.px!==null&&p.py!==null), tagCount=()=>Object.values(tags).filter(t=>t.px!==null&&t.py!==null).length;
+function isReady(){const r=requiredPoints();return state.selectionConfirmed&&r.length>0&&calibratedRequiredPoints().length===r.length&&tagCount()===4}
+function setMode(mode){state.mode=mode;const m=mode==="map";mapModeBtn.classList.toggle("active",m);tagModeBtn.classList.toggle("active",!m);mapControls.classList.toggle("hidden",!m);tagControls.classList.toggle("hidden",m);draw();updateMouseInfo()}
+function setCurrentPoint(key){state.currentPointKey=key&&getPoint(key)?.required?key:null;currentPointSelect.value=state.currentPointKey||"";renderGrid();draw();updateMouseInfo()}
+function chooseFirstRequired(){const r=requiredPoints(),u=r.find(p=>p.px===null);setCurrentPoint((u||r[0]||{}).key||null)}
+function selectNextUnset(){const r=requiredPoints();if(!r.length)return;const ci=r.findIndex(p=>p.key===state.currentPointKey);for(let o=1;o<=r.length;o++){const p=r[(Math.max(ci,0)+o)%r.length];if(p.px===null){setCurrentPoint(p.key);return}}}
+function rebuildPointSelect(){const r=requiredPoints();currentPointSelect.innerHTML="";if(!state.selectionConfirmed||!r.length){const o=document.createElement("option");o.value="";o.textContent="请先确认标定点集合";currentPointSelect.appendChild(o);currentPointSelect.disabled=true;return}currentPointSelect.disabled=false;r.forEach(p=>{const o=document.createElement("option");o.value=p.key;o.textContent=`(${p.x}, ${p.y})${p.px===null?" · 未标定":" · 已标定"}`;currentPointSelect.appendChild(o)});if(!state.currentPointKey||!getPoint(state.currentPointKey)?.required)chooseFirstRequired();else currentPointSelect.value=state.currentPointKey}
+function renderGrid(){coordGrid.innerHTML="";const c=document.createElement("div");c.className="axis-cell";c.textContent="y\\x";coordGrid.appendChild(c);for(let x=0;x<GRID_W;x++){const e=document.createElement("div");e.className="axis-cell";e.textContent=x;coordGrid.appendChild(e)}for(let y=0;y<GRID_H;y++){const yl=document.createElement("div");yl.className="axis-cell";yl.textContent=y;coordGrid.appendChild(yl);for(let x=0;x<GRID_W;x++){const p=getPoint(`${x},${y}`),b=document.createElement("button");b.type="button";b.className="coord-cell";b.textContent=`${x},${y}`;b.title=`地图坐标 (${x}, ${y})`;if(!state.selectionConfirmed&&p.selected)b.classList.add("selected-point");if(state.selectionConfirmed&&p.required&&p.px===null)b.classList.add("required-unset");if(p.required&&p.px!==null)b.classList.add("calibrated");if(p.key===state.currentPointKey)b.classList.add("current");b.addEventListener("click",()=>{if(!state.selectionConfirmed){p.selected=!p.selected;refreshUI();return}if(p.required){setMode("map");setCurrentPoint(p.key)}});coordGrid.appendChild(b)}}}
+function updateTagButtons(){document.querySelectorAll(".tag-btn").forEach(b=>{const id=Number(b.dataset.tag);b.classList.toggle("active",id===state.selectedTagId);b.classList.toggle("done",tags[id].px!==null)})}
+function updateBadges(){const s=selectedPoints().length,r=requiredPoints().length,c=calibratedRequiredPoints().length,a=calibratedAllPoints().length,t=tagCount();imageBadge.textContent=state.image?`${state.imageName||"PNG"} · ${state.image.naturalWidth}×${state.image.naturalHeight}`:"尚未载入图片";imageBadge.className=`badge ${state.image?"good":"warn"}`;tagBadge.textContent=`Tag ${t} / 4`;tagBadge.className=`badge ${t===4?"good":"warn"}`;selectedBadge.textContent=state.selectionConfirmed?`已确认 ${r} 点`:`已选择 ${s} 点`;selectedBadge.className=`badge ${(state.selectionConfirmed?r:s)>0?"good":"warn"}`;calibratedBadge.textContent=state.selectionConfirmed?`已标定 ${c} / ${r}`:`目前已标定 ${a}`;calibratedBadge.className=`badge ${state.selectionConfirmed&&c===r&&r>0?"good":"warn"}`;calibrationProgress.style.width=`${r>0?c/r*100:0}%`;progressText.innerHTML=state.selectionConfirmed?`<strong>已标定 ${c} 个坐标</strong>，本次共需要 ${r} 个。`:`<strong>目前已标定 ${a} 个坐标</strong>，尚未确认本次所需集合。`;if(!state.selectionConfirmed){selectionStatus.textContent=`已选择 ${s} 个坐标。点击“确认标定点集合”后锁定本次要求。`;selectionStatus.className="status-box warning-box"}else{selectionStatus.textContent=`已确认 ${r} 个标定点。完成这些点后即可生成参数代码。`;selectionStatus.className="status-box success-box"}if(isReady()){generateStatus.textContent=`生成条件已满足：4 个 Tag 完整，${r} 个必需坐标均已标定。`;generateStatus.className="status-box success-box"}else if(!state.selectionConfirmed){generateStatus.textContent="需要先确认标定点集合。";generateStatus.className="status-box warning-box"}else{generateStatus.textContent=`还缺少 ${4-t} 个 Tag、${r-c} 个必需坐标。`;generateStatus.className="status-box warning-box"}}
+function refreshUI(){rebuildPointSelect();renderGrid();updateTagButtons();updateBadges();updateMouseInfo();draw();updateMagnifier();confirmSelectionBtn.classList.toggle("hidden",state.selectionConfirmed);editSelectionBtn.classList.toggle("hidden",!state.selectionConfirmed)}
+function confirmSelection(){const s=selectedPoints();if(!s.length){alert("请至少选择一个需要标定的坐标。");return}allPoints().forEach(p=>p.required=p.selected);state.selectionConfirmed=true;chooseFirstRequired();refreshUI()}
+function editSelection(){state.selectionConfirmed=false;state.currentPointKey=null;allPoints().forEach(p=>{p.selected=p.required;p.required=false});refreshUI()}
+function selectAll(){if(state.selectionConfirmed)return;allPoints().forEach(p=>p.selected=true);refreshUI()}
+function selectInner(){if(state.selectionConfirmed)return;allPoints().forEach(p=>p.selected=p.x>0&&p.x<GRID_W-1&&p.y>0&&p.y<GRID_H-1);refreshUI()}
+function clearSelection(){if(state.selectionConfirmed)return;allPoints().forEach(p=>p.selected=false);refreshUI()}
+function setSelectedTag(id){state.selectedTagId=Number(id);updateTagButtons();updateMouseInfo();draw()}
+function resizeCanvasToImage(){if(!state.image){mainCanvas.width=320;mainCanvas.height=240}else{mainCanvas.width=state.image.naturalWidth;mainCanvas.height=state.image.naturalHeight}applyZoom()}
+function applyZoom(){mainCanvas.style.width=`${mainCanvas.width*state.zoom}px`;mainCanvas.style.height=`${mainCanvas.height*state.zoom}px`;zoomText.textContent=`${Math.round(state.zoom*100)}%`}
+function drawPlaceholder(){mainCtx.clearRect(0,0,mainCanvas.width,mainCanvas.height);mainCtx.fillStyle="#111827";mainCtx.fillRect(0,0,mainCanvas.width,mainCanvas.height);mainCtx.fillStyle="#94a3b8";mainCtx.textAlign="center";mainCtx.textBaseline="middle";mainCtx.font="16px system-ui";mainCtx.fillText("请先上传 PNG 图片",mainCanvas.width/2,mainCanvas.height/2)}
+function drawMarker(px,py,label,color,current){const r=current?6:4;mainCtx.save();mainCtx.strokeStyle=color;mainCtx.fillStyle="rgba(0,0,0,.65)";mainCtx.lineWidth=current?3:2;mainCtx.beginPath();mainCtx.arc(px,py,r,0,Math.PI*2);mainCtx.fill();mainCtx.stroke();mainCtx.beginPath();mainCtx.moveTo(px-r-4,py);mainCtx.lineTo(px+r+4,py);mainCtx.moveTo(px,py-r-4);mainCtx.lineTo(px,py+r+4);mainCtx.stroke();mainCtx.restore()}
+function draw(){if(!state.image){drawPlaceholder();return}mainCtx.clearRect(0,0,mainCanvas.width,mainCanvas.height);mainCtx.drawImage(state.image,0,0);Object.values(tags).forEach(t=>{if(t.px!==null)drawMarker(t.px,t.py,`T${t.id}`,"#f59e0b",state.mode==="tag"&&t.id===state.selectedTagId)});allPoints().forEach(p=>{if(p.px!==null&&(p.required||!state.selectionConfirmed))drawMarker(p.px,p.py,`${p.x},${p.y}`,"#22c55e",state.mode==="map"&&p.key===state.currentPointKey)});if(state.mousePx!==null){mainCtx.save();mainCtx.strokeStyle="rgba(255,255,255,.85)";mainCtx.lineWidth=1;mainCtx.beginPath();mainCtx.moveTo(state.mousePx-6,state.mousePy);mainCtx.lineTo(state.mousePx+6,state.mousePy);mainCtx.moveTo(state.mousePx,state.mousePy-6);mainCtx.lineTo(state.mousePx,state.mousePy+6);mainCtx.stroke();mainCtx.restore()}}
+function canvasEventToPixel(e){if(!state.image)return null;const r=mainCanvas.getBoundingClientRect(),px=(e.clientX-r.left)*mainCanvas.width/r.width,py=(e.clientY-r.top)*mainCanvas.height/r.height;return{px:Math.max(0,Math.min(mainCanvas.width-1,px)),py:Math.max(0,Math.min(mainCanvas.height-1,py))}}
+function assignPixel(px,py){if(state.mode==="tag"){const t=tags[state.selectedTagId];t.px=px;t.py=py;const n=[0,1,2,3].find(id=>tags[id].px===null);if(n!==undefined)setSelectedTag(n);refreshUI();return}if(!state.selectionConfirmed||!state.currentPointKey){alert("请先选择并确认本次需要标定的坐标。");return}const p=getPoint(state.currentPointKey);p.px=px;p.py=py;selectNextUnset();refreshUI()}
+function updateMouseInfo(){const m=state.mousePx===null?"—":`(${format(state.mousePx,2)}, ${format(state.mousePy,2)})`;let t="尚未确认标定点";if(state.mode==="tag"){const g=tags[state.selectedTagId];t=`Tag ${g.id} → (${g.gx}, ${g.gy})`}else if(state.currentPointKey){const p=getPoint(state.currentPointKey);t=`地图坐标 (${p.x}, ${p.y})`}mouseInfo.innerHTML=`鼠标像素：${m}<br>当前目标：${t}`}
+function updateMagnifier(){magCtx.clearRect(0,0,magnifier.width,magnifier.height);magCtx.fillStyle="#111827";magCtx.fillRect(0,0,magnifier.width,magnifier.height);if(!state.image||state.mousePx===null){magCtx.fillStyle="#94a3b8";magCtx.textAlign="center";magCtx.textBaseline="middle";magCtx.font="14px system-ui";magCtx.fillText("移动鼠标查看像素",magnifier.width/2,magnifier.height/2);return}const s=19;magCtx.imageSmoothingEnabled=false;magCtx.drawImage(mainCanvas,state.mousePx-s/2,state.mousePy-s/2,s,s,0,0,magnifier.width,magnifier.height);magCtx.strokeStyle="#ef4444";magCtx.lineWidth=2;magCtx.beginPath();magCtx.moveTo(magnifier.width/2,0);magCtx.lineTo(magnifier.width/2,magnifier.height);magCtx.moveTo(0,magnifier.height/2);magCtx.lineTo(magnifier.width,magnifier.height/2);magCtx.stroke()}
+const clampZoom=v=>Math.max(.5,Math.min(8,v));
+function zoomAroundPointer(newZoom,cx,cy){const old=state.zoom,next=clampZoom(newZoom);if(Math.abs(next-old)<.0001)return;const sr=canvasShell.getBoundingClientRect(),cr=mainCanvas.getBoundingClientRect(),contentX=canvasShell.scrollLeft+cx-sr.left,contentY=canvasShell.scrollTop+cy-sr.top,relX=(cx-cr.left)/cr.width,relY=(cy-cr.top)/cr.height;state.zoom=next;zoomRange.value=String(Math.round(next*100));applyZoom();canvasShell.scrollLeft=contentX-relX*mainCanvas.width*next;canvasShell.scrollTop=contentY-relY*mainCanvas.height*next}
+function computeHomography(c){const[[u0,v0],[u1,v1],[u2,v2],[u3,v3]]=c,du1=u1-u2,du2=u3-u2,su=u0-u1+u2-u3,dv1=v1-v2,dv2=v3-v2,sv=v0-v1+v2-v3,den=du1*dv2-dv1*du2;if(Math.abs(den)<1e-9)throw new Error("Tag 四点退化，无法计算单应矩阵。");const g=(su*dv2-sv*du2)/den,h=(du1*sv-dv1*su)/den,a=u1*(g+1)-u0,b=u3*(h+1)-u0,cc=u0,d=v1*(g+1)-v0,e=v3*(h+1)-v0,f=v0;return[e-f*h,cc*h-b,b*f-cc*e,f*g-d,a-cc*g,cc*d-a*f,d*h-e*g,b*g-a*h,a*e-b*d]}
+function applyHomography(m,x,y){const[A,B,C,D,E,F,G,H,I]=m,w=G*x+H*y+I;if(Math.abs(w)<1e-9)throw new Error("无效投影坐标。");return[(A*x+B*y+C)/w,(D*x+E*y+F)/w]}
+function calculateMeasuredResiduals(){if(!isReady())throw new Error("生成条件尚未满足。");const matrix=computeHomography([0,1,2,3].map(id=>[tags[id].px,tags[id].py])),measured=[];requiredPoints().forEach(p=>{const[nx,ny]=applyHomography(matrix,p.px,p.py),rawX=nx*15,rawY=ny*11;measured.push({x:p.x,y:p.y,dx:p.x-rawX,dy:p.y-rawY})});return measured}
+function interpolateResidual(x,y,measured,field){const exact=measured.find(p=>p.x===x&&p.y===y);if(exact)return exact[field];let weighted=0,sum=0;measured.forEach(p=>{const dx=x-p.x,dy=y-p.y,distSq=dx*dx+dy*dy;if(distSq<1e-12){weighted=p[field];sum=1;return}const w=1/distSq;weighted+=w*p[field];sum+=w});return sum>0?weighted/sum:0}
+function format(v,d=4){const n=Math.abs(v)<Math.pow(10,-d)/2?0:v;return n.toFixed(d)}
+const tupleRow=(vals,comment)=>`    (${vals.map(v=>format(v,4)).join(", ")}),  # ${comment}`;
+function buildCode(){const measured=calculateMeasuredResiduals(),dxTable=[],dyTable=[];for(let y=0;y<GRID_H;y++){const dx=[],dy=[];for(let x=0;x<GRID_W;x++){dx.push(interpolateResidual(x,y,measured,"dx"));dy.push(interpolateResidual(x,y,measured,"dy"))}dxTable.push(dx);dyTable.push(dy)}const l=[];l.push("# ==========================","# 二维残差打表修正参数","# 由全坐标 HTML 打表工具自动生成",`# 实际标定点数量：${measured.length}`,"# 未实际标定的节点由网页使用反距离加权插值补全","# ==========================","ENABLE_CALIBRATION_TABLE = True","DEBUG_PRINT_CALIBRATION_DATA = False","",`CAL_X = (${ALL_X.map(v=>format(v,1)).join(", ")})`,`CAL_Y = (${ALL_Y.map(v=>format(v,1)).join(", ")})`,"","CAL_DX_TABLE = (");dxTable.forEach((r,y)=>l.push(tupleRow(r,`y = ${y}`)));l.push(")","","CAL_DY_TABLE = (");dyTable.forEach((r,y)=>l.push(tupleRow(r,`y = ${y}`)));l.push(")","","# 本次实际标定的地图坐标：");measured.forEach(p=>l.push(`# (${p.x}, ${p.y}) -> dx=${format(p.dx,4)}, dy=${format(p.dy,4)}`));return l.join("\n")}
+function generateCode(){try{codeOutput.value=buildCode();generateStatus.textContent="参数代码已生成。";generateStatus.className="status-box success-box"}catch(e){codeOutput.value="";generateStatus.textContent=e.message;generateStatus.className="status-box warning-box"}}
+async function copyCode(){if(!codeOutput.value.trim())generateCode();if(!codeOutput.value.trim())return;try{await navigator.clipboard.writeText(codeOutput.value);$("copyBtn").textContent="已复制";setTimeout(()=>$("copyBtn").textContent="复制代码",1200)}catch{codeOutput.focus();codeOutput.select();document.execCommand("copy")}}
+function downloadFile(name,content,mime="text/plain"){const blob=new Blob([content],{type:`${mime};charset=utf-8`}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;a.click();URL.revokeObjectURL(url)}
+function exportSession(){const data={version:2,imageName:state.imageName,selectionConfirmed:state.selectionConfirmed,currentPointKey:state.currentPointKey,points:allPoints().map(p=>({x:p.x,y:p.y,selected:p.selected,required:p.required,px:p.px,py:p.py})),tags:Object.fromEntries(Object.entries(tags).map(([id,t])=>[id,{px:t.px,py:t.py}]))};downloadFile("openart_all_coords_calibration_session.json",JSON.stringify(data,null,2),"application/json")}
+function importSession(file){const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(String(r.result));if(!Array.isArray(d.points)||d.points.length!==192)throw new Error("JSON 中必须包含 192 个地图坐标。");d.points.forEach(i=>{const p=getPoint(`${i.x},${i.y}`);if(!p)return;p.selected=!!i.selected;p.required=!!i.required;p.px=i.px??null;p.py=i.py??null});for(const id of[0,1,2,3]){tags[id].px=d.tags?.[id]?.px??null;tags[id].py=d.tags?.[id]?.py??null}state.selectionConfirmed=!!d.selectionConfirmed;state.currentPointKey=d.currentPointKey||null;if(state.currentPointKey&&!getPoint(state.currentPointKey)?.required)state.currentPointKey=null;refreshUI()}catch(e){alert(`导入失败：${e.message}`)}};r.readAsText(file)}
+function resetCalibrated(){if(!confirm("清除全部地图坐标的像素标定结果？标定点选择会保留。"))return;allPoints().forEach(p=>{p.px=null;p.py=null});chooseFirstRequired();codeOutput.value="";refreshUI()}
+function resetEverything(){if(!confirm("清除图片以外的全部 Tag、选择和标定数据？"))return;allPoints().forEach(p=>{p.selected=false;p.required=false;p.px=null;p.py=null});Object.values(tags).forEach(t=>{t.px=null;t.py=null});state.selectionConfirmed=false;state.currentPointKey=null;state.selectedTagId=0;codeOutput.value="";refreshUI()}
+
+imageInput.addEventListener("change",()=>{const file=imageInput.files?.[0];if(!file)return;const url=URL.createObjectURL(file),img=new Image();img.onload=()=>{state.image=img;state.imageName=file.name;state.zoom=img.naturalWidth===320&&img.naturalHeight===240?2:1;zoomRange.value=String(Math.round(state.zoom*100));resizeCanvasToImage();refreshUI();URL.revokeObjectURL(url)};img.onerror=()=>{URL.revokeObjectURL(url);alert("无法读取图片。")};img.src=url});
+currentPointSelect.addEventListener("change",()=>{setMode("map");setCurrentPoint(currentPointSelect.value)});
+mapModeBtn.addEventListener("click",()=>setMode("map"));tagModeBtn.addEventListener("click",()=>setMode("tag"));
+document.querySelectorAll(".tag-btn").forEach(b=>b.addEventListener("click",()=>{setMode("tag");setSelectedTag(b.dataset.tag)}));
+$("selectAllBtn").addEventListener("click",selectAll);$("selectInnerBtn").addEventListener("click",selectInner);$("clearSelectionBtn").addEventListener("click",clearSelection);confirmSelectionBtn.addEventListener("click",confirmSelection);editSelectionBtn.addEventListener("click",editSelection);
+$("undoCurrentBtn").addEventListener("click",()=>{if(!state.currentPointKey)return;const p=getPoint(state.currentPointKey);p.px=null;p.py=null;codeOutput.value="";refreshUI()});
+$("nextUnsetBtn").addEventListener("click",selectNextUnset);$("resetCalibratedBtn").addEventListener("click",resetCalibrated);
+$("undoTagBtn").addEventListener("click",()=>{const t=tags[state.selectedTagId];t.px=null;t.py=null;codeOutput.value="";refreshUI()});
+$("resetTagsBtn").addEventListener("click",()=>{if(!confirm("清除全部 4 个 Tag 坐标？"))return;Object.values(tags).forEach(t=>{t.px=null;t.py=null});setSelectedTag(0);codeOutput.value="";refreshUI()});
+$("resetEverythingBtn").addEventListener("click",resetEverything);$("exportSessionBtn").addEventListener("click",exportSession);
+$("importSessionInput").addEventListener("change",()=>{const f=$("importSessionInput").files?.[0];if(f)importSession(f);$("importSessionInput").value=""});
+zoomRange.addEventListener("input",()=>{state.zoom=Number(zoomRange.value)/100;applyZoom()});
+mainCanvas.addEventListener("wheel",e=>{e.preventDefault();zoomAroundPointer(state.zoom*(e.deltaY<0?1.1:1/1.1),e.clientX,e.clientY)},{passive:false});
+mainCanvas.addEventListener("mousemove",e=>{const p=canvasEventToPixel(e);if(!p)return;state.mousePx=p.px;state.mousePy=p.py;draw();updateMagnifier();updateMouseInfo()});
+mainCanvas.addEventListener("mouseleave",()=>{state.mousePx=null;state.mousePy=null;draw();updateMagnifier();updateMouseInfo()});
+mainCanvas.addEventListener("click",e=>{const p=canvasEventToPixel(e);if(!p){alert("请先上传 PNG 图片。");return}assignPixel(p.px,p.py)});
+$("generateBtn").addEventListener("click",generateCode);$("copyBtn").addEventListener("click",copyCode);$("downloadBtn").addEventListener("click",()=>{if(!codeOutput.value.trim())generateCode();if(codeOutput.value.trim())downloadFile("openart_all_coords_parameters.txt",codeOutput.value)});
+resizeCanvasToImage();setMode("map");setSelectedTag(0);refreshUI();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>320×240 ROI 画框工具</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,"Microsoft YaHei",sans-serif;background:#111;color:#eee}.wrap{max-width:1100px;margin:0 auto;padding:18px}.panel{background:#1b1b1b;border:1px solid #333;border-radius:12px;padding:14px;margin-bottom:14px}h2{margin:0 0 12px;font-size:20px}.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}button,.filebtn{border:1px solid #555;background:#2b2b2b;color:#fff;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:14px}button:hover,.filebtn:hover{background:#3a3a3a}.danger{border-color:#7a3434}.ok{border-color:#347a49}input[type=file]{display:none}.canvas-wrap{position:relative;width:100%;aspect-ratio:4/3;background:#000;border:1px solid #444;border-radius:8px;overflow:hidden;touch-action:none}canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}.tip{font-size:13px;color:#aaa;margin-top:8px;line-height:1.6}textarea{width:100%;min-height:110px;background:#0c0c0c;color:#8cff9a;border:1px solid #444;border-radius:8px;padding:10px;font:15px Consolas,monospace;resize:vertical}.box-list{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.chip{background:#292929;border:1px solid #444;border-radius:7px;padding:5px 8px;font:13px Consolas,monospace}.stat{margin-left:auto;color:#aaa;font-size:13px}@media(max-width:600px){.wrap{padding:10px}.panel{padding:10px}.stat{width:100%;margin-left:0}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <h2>320×240 ROI 画框工具</h2>
+    <div class="tools">
+      <label class="filebtn">选择图片<input id="file" type="file" accept="image/*"></label>
+      <button id="undo">撤销最后一个框</button>
+      <button id="clear" class="danger">清空框</button>
+      <button id="copy" class="ok">复制 ROIS</button>
+      <span class="stat" id="stat">0 个框</span>
+    </div>
+    <div class="tip">画面始终保持 4:3；图片会铺满显示区域。按住鼠标左键拖动即可画任意大小 ROI。所有坐标自动换算回原始 320×240，并按框的中心 X 坐标从左到右排序。</div>
+  </div>
+  <div class="panel"><div class="canvas-wrap"><canvas id="canvas" width="320" height="240"></canvas></div></div>
+  <div class="panel"><textarea id="output" readonly>ROIS=[]</textarea><div class="box-list" id="boxList"></div></div>
+</div>
+<script>
+const W=320,H=240,canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d'),file=document.getElementById('file'),output=document.getElementById('output'),boxList=document.getElementById('boxList'),stat=document.getElementById('stat');
+let img=null,boxes=[],drawing=false,start=null,current=null;
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function pos(ev){const r=canvas.getBoundingClientRect(),p=ev.touches?ev.touches[0]:ev;return{x:clamp((p.clientX-r.left)*W/r.width,0,W),y:clamp((p.clientY-r.top)*H/r.height,0,H)}}
+function norm(a,b){let x=Math.min(a.x,b.x),y=Math.min(a.y,b.y),w=Math.abs(b.x-a.x),h=Math.abs(b.y-a.y);return{x:Math.round(x),y:Math.round(y),w:Math.round(w),h:Math.round(h)}}
+function sortedBoxes(){return[...boxes].sort((a,b)=>(a.x+a.w/2)-(b.x+b.w/2))}
+function updateOutput(){const s=sortedBoxes();output.value='ROIS=[\n'+s.map(b=>`    (${b.x},${b.y},${b.w},${b.h})`).join(',\n')+'\n]';boxList.innerHTML=s.map((b,i)=>`<span class="chip">ROI${i}: (${b.x},${b.y},${b.w},${b.h})</span>`).join('');stat.textContent=boxes.length+' 个框'}
+function draw(){ctx.clearRect(0,0,W,H);if(img)ctx.drawImage(img,0,0,W,H);else{ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);ctx.fillStyle='#777';ctx.font='16px sans-serif';ctx.textAlign='center';ctx.fillText('请选择一张图片',W/2,H/2)}const s=sortedBoxes();ctx.lineWidth=2;s.forEach((b,i)=>{ctx.strokeStyle='#fff';ctx.strokeRect(b.x,b.y,b.w,b.h);ctx.fillStyle='rgba(0,0,0,.65)';ctx.fillRect(b.x,b.y,44,18);ctx.fillStyle='#fff';ctx.font='12px Arial';ctx.textAlign='left';ctx.fillText('ROI'+i,b.x+4,b.y+13)});if(drawing&&start&&current){const b=norm(start,current);ctx.strokeStyle='#00ff7f';ctx.lineWidth=2;ctx.setLineDash([5,3]);ctx.strokeRect(b.x,b.y,b.w,b.h);ctx.setLineDash([]);ctx.fillStyle='rgba(0,255,127,.15)';ctx.fillRect(b.x,b.y,b.w,b.h)}}
+function down(ev){ev.preventDefault();drawing=true;start=pos(ev);current=start;draw()}
+function move(ev){if(!drawing)return;ev.preventDefault();current=pos(ev);draw()}
+function up(ev){if(!drawing)return;ev.preventDefault();current=pos(ev);drawing=false;const b=norm(start,current);start=current=null;if(b.w>=3&&b.h>=3)boxes.push(b);updateOutput();draw()}
+canvas.addEventListener('mousedown',down);window.addEventListener('mousemove',move);window.addEventListener('mouseup',up);canvas.addEventListener('touchstart',down,{passive:false});window.addEventListener('touchmove',move,{passive:false});window.addEventListener('touchend',up,{passive:false});
+file.addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=()=>{const im=new Image();im.onload=()=>{img=im;boxes=[];updateOutput();draw()};im.src=reader.result};reader.readAsDataURL(f)});
+document.getElementById('undo').onclick=()=>{boxes.pop();updateOutput();draw()};document.getElementById('clear').onclick=()=>{boxes=[];updateOutput();draw()};document.getElementById('copy').onclick=async()=>{try{await navigator.clipboard.writeText(output.value);const b=document.getElementById('copy');b.textContent='已复制';setTimeout(()=>b.textContent='复制 ROIS',1000)}catch(e){output.select();document.execCommand('copy')}};updateOutput();draw();
+</script>
+</body>
+</html>
